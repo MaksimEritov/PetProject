@@ -1,0 +1,42 @@
+name: Run Backtesting
+
+on:
+  workflow_dispatch:
+      inputs:
+          STRATEGY_NAME:
+            description: 'Strategy Name'
+            default: "100-50-100"
+            required: true
+          STRATEGY_CONFIG:
+            description: 'Strategy'
+            required: false
+
+
+jobs:
+  Run-Backtesting:
+    name: Run Backtesting
+    runs-on: ubuntu-latest
+    env:
+      NODE_ENV: test
+      STRATEGY_NAME: ${{ github.event.inputs.STRATEGY_NAME }}
+      STRATEGY_CONFIG: ${{ github.event.inputs.STRATEGY_CONFIG }}
+      USE_EXCHANGE_SIMULATOR: ${{ github.event.inputs.USE_EXCHANGE_SIMULATOR }}
+      USE_TREND_MONITOR: ${{ github.event.inputs.USE_TREND_MONITOR }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20.x
+          cache: 'npm'
+      - name: Install project dependencies
+        run: npm i
+      - name: Build project
+        run: npm run build --if-present
+      - name: Run backtests
+        run: npm run start:prod
+      - name: Upload output file as artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: Report for ${{ github.event.inputs.STRATEGY_NAME }}
+          path: report/report-*

@@ -1,0 +1,56 @@
+name: Jest Coverage
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Cache Jest coverage data
+      uses: actions/cache@v2
+      id: coverage-cache
+      with:
+        path: coverage
+        key: coverage-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: coverage-
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: '14.x'
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Run Jest
+      run: npm run test:cov
+
+    - name: Compare coverage to cache
+      run: |
+        current_coverage=$(cat coverage/lcov.info | grep 'statements' | awk '{ print $3 }' | tr -d '%')
+        cached_coverage=$(cat ${{ env.HOME }}/.cache/coverage/lcov.info | grep 'statements' | awk '{ print $3 }' | tr -d '%')
+        if (( $(echo "$current_coverage < $cached_coverage" | bc -l) )); then
+          echo "ERROR: Coverage decreased from $cached_coverage% to $current_coverage%"
+          exit 1
+        fi
+
+    - name: Save Jest coverage data
+      if: always()
+      run: |
+        mkdir -p ${{ runner.temp }}/coverage
+        cp -r coverage ${{ runner.temp }}
+      continue-on-error: true
+
+    - name: Restore Jest coverage data
+      if: always()
+      uses: actions/cache@v2
+      with:
+        path: coverage
+        key: coverage-${{ hashFiles('**/package-lock.json') }}
